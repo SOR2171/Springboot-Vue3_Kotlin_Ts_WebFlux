@@ -1,8 +1,8 @@
-<script setup>
+<script setup lang="ts">
 import {reactive, ref} from "vue";
 import {Lock, User} from "@element-plus/icons-vue";
-import {login} from "../../net/index.js";
-import router from "../../router/index.js";
+import {login} from "../../api";
+import router from "../../router/index.ts";
 
 const formRef = ref()
 
@@ -22,9 +22,9 @@ const formRule = {
 }
 
 function userLogin() {
-  formRef.value.validate((valid) => {
+  formRef.value.validate((valid:boolean) => {
     if (valid) {
-      login(form.username, form.password, form.remember, () => router.push('/index'))
+      login(form.username, form.password, form.remember, () => router.push('/home'))
     } else {
       console.log('error submit!')
       return false
