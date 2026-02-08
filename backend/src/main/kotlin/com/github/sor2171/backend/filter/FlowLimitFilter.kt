@@ -2,6 +2,7 @@ package com.github.sor2171.backend.filter
 
 import com.github.sor2171.backend.entity.RestBean
 import com.github.sor2171.backend.utils.Const
+import org.springframework.beans.factory.annotation.Value
 import org.springframework.core.annotation.Order
 import org.springframework.data.redis.core.ReactiveStringRedisTemplate
 import org.springframework.http.HttpStatus
@@ -16,6 +17,14 @@ import java.time.Duration
 @Component
 @Order(Const.FLOW_LIMIT_ORDER)
 class FlowLimitFilter(
+
+    @param:Value("\${spring.security.jwt.ip-ban-limit}")
+    private val ipBanLimit: Long,
+    @param:Value("\${spring.security.jwt.ip-ban-time}")
+    private val ipBanTime: Long,
+    @param:Value("\${spring.security.jwt.ip-ban-time-min}")
+    private val ipBanTimeMin: Long,
+    
     private val template: ReactiveStringRedisTemplate
 ) : WebFilter {
 
@@ -36,7 +45,11 @@ class FlowLimitFilter(
         response.statusCode = HttpStatus.FORBIDDEN
         response.headers.contentType = MediaType.APPLICATION_JSON
         val buffer = response.bufferFactory()
-            .wrap(RestBean.forbidden("Too many requests").toJsonString().toByteArray())
+            .wrap(
+                RestBean.forbidden("Too many requests")
+                    .toJsonString()
+                    .toByteArray()
+            )
         return response.writeWith(Mono.just(buffer))
     }
 
@@ -51,9 +64,9 @@ class FlowLimitFilter(
                 template.hasKey(counterKey).flatMap { hasCounter ->
                     if (hasCounter) {
                         template.opsForValue().increment(counterKey).flatMap { count ->
-                            if (count != null && count > 10) {
+                            if (count != null && count > ipBanLimit) {
                                 template.opsForValue()
-                                    .set(blockKey, "1", Duration.ofMinutes(1))
+                                    .set(blockKey, "1", Duration.ofMinutes(ipBanTime))
                                     .thenReturn(false)
                             } else {
                                 Mono.just(true)
@@ -61,7 +74,7 @@ class FlowLimitFilter(
                         }
                     } else {
                         template.opsForValue()
-                            .set(counterKey, "1", Duration.ofSeconds(3))
+                            .set(counterKey, "1", Duration.ofSeconds(ipBanTimeMin))
                             .thenReturn(true)
                     }
                 }

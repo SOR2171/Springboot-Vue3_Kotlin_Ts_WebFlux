@@ -1,7 +1,6 @@
 package com.github.sor2171.backend.utils
 
 object Const {
-    const val CORS_ORDER = -102
     const val FLOW_LIMIT_ORDER = -101
     
     const val JWT_BLACK_LIST = "jwt:blacklist:"

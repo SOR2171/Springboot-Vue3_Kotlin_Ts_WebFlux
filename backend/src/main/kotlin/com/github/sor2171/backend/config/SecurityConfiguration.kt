@@ -11,9 +11,11 @@ import org.springframework.http.HttpStatus
 import org.springframework.http.MediaType
 import org.springframework.security.authentication.ReactiveAuthenticationManager
 import org.springframework.security.authentication.UserDetailsRepositoryReactiveAuthenticationManager
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken
 import org.springframework.security.config.annotation.web.reactive.EnableWebFluxSecurity
 import org.springframework.security.config.web.server.SecurityWebFiltersOrder
 import org.springframework.security.config.web.server.ServerHttpSecurity
+import org.springframework.security.core.userdetails.User
 import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.security.web.server.SecurityWebFilterChain
 import org.springframework.security.web.server.authentication.AuthenticationWebFilter
@@ -47,11 +49,19 @@ class SecurityConfiguration(
                     .pathMatchers(
                         "/api/auth/**",
                         "/error"
-                    ).permitAll()
-                    .anyExchange().authenticated()
+                    )
+                    .permitAll()
+                    .anyExchange()
+                    .authenticated()
             }
-            .addFilterAt(loginAuthenticationFilter(), SecurityWebFiltersOrder.AUTHENTICATION)
-            .addFilterAt(jwtAuthorizeFilter, SecurityWebFiltersOrder.AUTHENTICATION)
+            .addFilterAt(
+                loginAuthenticationFilter(),
+                SecurityWebFiltersOrder.AUTHENTICATION
+            )
+            .addFilterAt(
+                jwtAuthorizeFilter,
+                SecurityWebFiltersOrder.AUTHENTICATION
+            )
             .exceptionHandling {
                 it.authenticationEntryPoint { exchange, ex ->
                     writeJsonResponse(
@@ -81,13 +91,17 @@ class SecurityConfiguration(
         )
         filter.setServerAuthenticationConverter(loginAuthenticationConverter())
         filter.setAuthenticationSuccessHandler { webFilterExchange, authentication ->
-            val user = authentication.principal as org.springframework.security.core.userdetails.User
+            val user = authentication.principal as User
             service.findAccountByNameOrEmail(user.username)
                 .flatMap { account ->
                     val vo = account.toAnotherObject(
                         AuthorizeVO::class,
                         mapOf(
-                            "token" to utils.createJwt(user, account.id!!, account.username),
+                            "token" to utils.createJwt(
+                                user,
+                                account.id!!,
+                                account.username
+                            ),
                             "expire" to utils.expiresTime()
                         )
                     )
@@ -115,7 +129,7 @@ class SecurityConfiguration(
                 val password = formData.getFirst("password")
                 if (username != null && password != null) {
                     Mono.just(
-                        org.springframework.security.authentication.UsernamePasswordAuthenticationToken(
+                        UsernamePasswordAuthenticationToken(
                             username,
                             password
                         )
